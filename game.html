@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Pong Game</title>
+  <style>
+    canvas {
+      border: 1px solid black;
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="gameCanvas" width="1000" height="600"></canvas>
+  <script type="text/javascript">
+    var canvas;
+    var canvasContext;
+    var ballX = 50;
+    var ballY = 50;
+    var ballSpeedX = 10;
+    var ballSpeedY = 5;
+
+    var player1score = 0;
+    var player2score = 0;
+
+    const WINNING_SCORE = 3;
+    var showingWinScreen = false;
+
+    var paddle1Y = 250;
+    var paddle2Y = 250;
+    const PADDLE_HEIGHT = 100;
+    const PADDLE_THICKNESS = 10;
+
+    var matchStartTime = 0; // Initialize the match start time to 0
+    var gameTime = 0; // Initialize the game time to 0
+    var timerInterval; // Will store the interval ID for the timer
+
+    function calculateMousePos(evt) {
+      var rect = canvas.getBoundingClientRect();
+      var root = document.documentElement;
+      var mouseX = evt.clientX - rect.left - root.scrollLeft;
+      var mouseY = evt.clientY - rect.top - root.scrollTop;
+      return {
+        x: mouseX,
+        y: mouseY
+      };
+    }
+
+    window.onload = function () {
+      canvas = document.getElementById("gameCanvas");
+      canvasContext = canvas.getContext("2d");
+
+      var framespersecond = 30;
+      setInterval(CallBoth, 1000 / framespersecond);
+
+      canvas.addEventListener("mousemove",
+        function (evt) {
+          var mousePos = calculateMousePos(evt);
+          paddle1Y = mousePos.y - (PADDLE_HEIGHT / 2);
+        }
+      );
+
+      canvas.addEventListener("mousedown",
+        function (evt) {
+          if (showingWinScreen) {
+            player1score = 0;
+            player2score = 0;
+            showingWinScreen = false;
+            startTimer(); // Start the timer when a new game begins
+          }
+        }
+      );
+
+      startTimer(); // Start the timer when the game loads
+    }
+
+    function CallBoth() {
+      moveEverything();
+      drawEverything();
+    }
+
+    function ballReset() {
+      if (player1score >= WINNING_SCORE || player2score >= WINNING_SCORE) {
+        player1score = 0;
+        player2score = 0;
+        showingWinScreen = true;
+      }
+      ballX = canvas.width / 2;
+      ballY = canvas.height / 2;
+
+      // Place the ball in front of the loser (either player 1 or player 2)
+      if (player1score > player2score) {
+        ballX = canvas.width - PADDLE_THICKNESS;
+        ballY = paddle1Y + PADDLE_HEIGHT / 2;
+      } else {
+        ballX = PADDLE_THICKNESS;
+        ballY = paddle2Y + PADDLE_HEIGHT / 2;
+      }
+
+      ballSpeedX = -ballSpeedX; // Reverse the ball's direction
+    }
+
+    function computerMovement() {
+      var paddle2Center = paddle2Y + (PADDLE_HEIGHT / 2);
+      if (paddle2Center < ballY - 35) {
+        paddle2Y += 11;
+      } else if (paddle2Center > ballY + 35) {
+        paddle2Y -= 11;
+      }
+    }
+
+    function moveEverything() {
+      if (showingWinScreen == true) {
+        return;
+      }
+      computerMovement();
+      ballX += ballSpeedX;
+      ballY += ballSpeedY;
+      if (ballX < 0) {
+        if (ballY > paddle1Y && ballY < paddle1Y + PADDLE_HEIGHT) {
+          ballSpeedX = -ballSpeedX;
+          var deltaY = ballY - (paddle1Y + (PADDLE_HEIGHT / 2));
+          ballSpeedY = deltaY * 0.35;
+        } else {
+          player2score += 1;
+          ballReset();
+        }
+      }
+      if (ballX > canvas.width) {
+        if (ballY > paddle2Y && ballY < paddle2Y + PADDLE_HEIGHT) {
+          ballSpeedX = -ballSpeedX;
+          var deltaY = ballY - (paddle2Y + (PADDLE_HEIGHT / 2));
+          ballSpeedY = deltaY * 0.35;
+        } else {
+          player1score += 1;
+          ballReset();
+        }
+      }
+      if (ballY < 0) {
+        ballSpeedY = -ballSpeedY;
+      }
+      if (ballY > canvas.height) {
+        ballSpeedY = -ballSpeedY;
+      }
+    }
+
+    function drawEverything() {
+      // the screen
+      ColorRect(0, 0, canvas.width, canvas.height, "black");
+      if (showingWinScreen == true) {
+        canvasContext.fillStyle = "red";
+        canvasContext.fillText("Click to continue", canvas.width / 2 - 50, canvas.height / 2);
+        return;
+      }
+
+      // the net
+      drawNet();
+
+      // the left paddle
+      ColorRect(0, paddle1Y, PADDLE_THICKNESS, PADDLE_HEIGHT, "white");
+
+      // the right paddle
+      ColorRect(canvas.width - PADDLE_THICKNESS, paddle2Y, PADDLE_THICKNESS, PADDLE_HEIGHT, "white");
+
+      // the ball
+      colorCircle(ballX, ballY, 10, "red");
+
+      // score board
+      canvasContext.fillText("Time: " + gameTime + "s", canvas.width / 2 - 40, 30);
+      canvasContext.fillText(player1score, 100, 100);
+      canvasContext.fillText(player2score, canvas.width - 100, 100);
+    }
+
+    function colorCircle(centerX, centerY, radius, drawColor) {
+      canvasContext.fillStyle = drawColor
+      canvasContext.beginPath();
+      canvasContext.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+      canvasContext.fill();
+    }
+
+    function ColorRect(leftX, topY, width, height, drawColor) {
+      canvasContext.fillStyle = drawColor;
+      canvasContext.fillRect(leftX, topY, width, height);
+    }
+
+    function drawNet() {
+      for (var i = 0; i < canvas.height; i += 40) {
+        ColorRect((canvas.width / 2) - 1, i, 2, 20, "white");
+      }
+    }
+
+    function startTimer() {
+      matchStartTime = Date.now();
+      timerInterval = setInterval(updateTimer, 1000); // Update timer every second (1000ms)
+    }
+
+    function updateTimer() {
+      gameTime = Math.floor((Date.now() - matchStartTime) / 1000); // Calculate elapsed seconds
+    }
+  </script>
+</body>
+
+</html>
+
+
+
